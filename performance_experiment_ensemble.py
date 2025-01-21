@@ -132,7 +132,7 @@ def run_experiment():
 
 
     n_features = train_dataset.X.shape[2]
-    ensemble_members = [5,11]
+    ensemble_members = [1,5,11]
     n_iters = 3
 
     random_seeds = np.random.randint(0, 1000, (max(ensemble_members), n_iters))
@@ -150,12 +150,15 @@ def run_experiment():
             if version == 'v5-full':
                 argo_mean_in_gnn = True
                 argo_mean_in_embedding = False
+                n_compartments = 3
             elif version == 'v5-std':
                 argo_mean_in_gnn = False
                 argo_mean_in_embedding = False
+                n_compartments = 13
             elif version == 'v5-std-embedmean':
                 argo_mean_in_gnn = False
                 argo_mean_in_embedding = True
+                n_compartments = 11
             for i in range(n_iters):
 
                 
