@@ -1,1 +1,10 @@
 data/*.nc
+data/*.pt
+data/**/*.npz
+logs/*
+figs/*
+runs/*
+datasets/*
+**/*.pyc
+**/*.egg-info/*
+**/__pycache__/*
