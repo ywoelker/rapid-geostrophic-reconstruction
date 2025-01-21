@@ -29,7 +29,7 @@ def run_experiment():
     using_missing_indices = False
     using_transport_from_previous_year = False
     use_deep_dvdz = False
-    deep_argo = True
+    deep_argo = False
 
 
     train_batch_sizes = {

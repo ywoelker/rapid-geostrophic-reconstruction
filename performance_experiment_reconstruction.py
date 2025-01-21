@@ -19,11 +19,6 @@ def run_experiment():
     time_smoothing = f'{smoothing_days}D'
     lat_bounds = (25, 30)
 
-    test_start_year = 2005
-    test_end_year = 2020
-    validation_years_on_each_side = 10
-
-
     target_reference_level = 4800
 
     missing_values_in_target = False
@@ -32,7 +27,7 @@ def run_experiment():
     using_missing_indices = False
     using_transport_from_previous_year = False
     use_deep_dvdz = False
-    deep_argo = True
+    deep_argo = False
 
 
     train_batch_sizes = {

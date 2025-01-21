@@ -21,7 +21,7 @@ def run_experiment():
 
     test_start_year = 2005
     test_end_year = 2020
-    validation_years_on_each_side = 10
+    validation_years_on_each_side = 5
 
     target_reference_level = 4800
 
@@ -33,7 +33,7 @@ def run_experiment():
     using_missing_indices = False
     using_transport_from_previous_year = False
     use_deep_dvdz = False
-    deep_argo = True
+    deep_argo = False
 
 
     train_batch_sizes = {
