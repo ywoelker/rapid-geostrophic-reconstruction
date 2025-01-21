@@ -20,7 +20,7 @@ def run_experiment():
     lat_bounds = (25, 30)
 
     test_start_year = 2005
-    test_end_year = 2020
+    test_end_year = 2025
     validation_years_on_each_side = 5
 
     target_reference_level = 4800
