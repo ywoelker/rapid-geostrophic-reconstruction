@@ -14,7 +14,7 @@ import torch
 
 
 def run_experiment():
-    smoothing_days = 90
+    smoothing_days = 10
 
     time_smoothing = f'{smoothing_days}D'
     lat_bounds = (25, 30)
@@ -29,7 +29,7 @@ def run_experiment():
     use_deep_dvdz = False
     deep_argo = False
 
-
+    geostrophic_prediction = False
     train_batch_sizes = {
         '10D': 32,
         '30D': 16,
@@ -123,7 +123,7 @@ def run_experiment():
 
 
 
-    train_dataset, val_dataset, test_dataset, (total_moc_mean, total_moc_std) = split_dataset_into_training_validation_testing_profile_datasets(
+    train_dataset, val_dataset, test_dataset, (total_moc_mean, total_moc_std, geostrophic_moc_mean, geostorphic_moc_std) = split_dataset_into_training_validation_testing_profile_datasets(
         False, test_start_year, test_end_year, validation_years_on_each_side, t_umo_obs, ds_argo_merged, add_tmp, add_sal, deep_argo, False, total_moc, florida_current, antilles_current, wind_stress, dv_dz_obs, missing_values_in_target, ds_pos_sim, compartments, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz
     )
 
@@ -181,9 +181,13 @@ def run_experiment():
 
 
 
-                best_model = train(model, dl, val_dl, device, verbose = False)
+                best_model = train(model, dl, val_dl, device, verbose = False, geostrophic_target= geostrophic_prediction)
 
-                test_predictions, (test_hidden_spaces, test_embedding_spaces, test_gt_transport, test_inner_values) = make_predictions(test_dataset, best_model, ds_argo_merged.isel(time = test_dataset.global_indices).time, total_moc_mean, total_moc_std,device = device)
+                if geostrophic_prediction:
+                    test_predictions, (test_hidden_spaces, test_embedding_spaces, test_gt_transport, test_inner_values) = make_predictions(test_dataset, best_model, ds_argo_merged.isel(time = test_dataset.global_indices).time, geostrophic_moc_mean, geostorphic_moc_std,device = device, geostrophic_target=True)
+                else:
+                    test_predictions, (test_hidden_spaces, test_embedding_spaces, test_gt_transport, test_inner_values) = make_predictions(test_dataset, best_model, ds_argo_merged.isel(time = test_dataset.global_indices).time, total_moc_mean, total_moc_std,device = device)
+
 
 
                 target_variable = test_gt_transport
@@ -197,7 +201,7 @@ def run_experiment():
                 
                 print(f'\t R2 {r2_scores[-1]*100:.2f}%; MAE {mae_scores[-1]:.2f}; MSE {mse_scores[-1]:.2f}')
 
-            print(f'{version} {f"- {n_compartments} compartments" if version.startswith("v5") else ""} -' +
+            print(f'{version} - {time_smoothing}D {f"- {n_compartments} compartments" if version.startswith("v5") else ""} -' +
                 f'R2 mean {np.mean(r2_scores)*100:.2f}% std {np.std(r2_scores)*100:.2f}%; ' +
                 f'MAE mean {np.mean(mae_scores):.2f} std {np.std(mae_scores):.2f}; ' +
                 f'MSE mean {np.mean(mse_scores):.2f} std {np.std(mse_scores):.2f}; ')
