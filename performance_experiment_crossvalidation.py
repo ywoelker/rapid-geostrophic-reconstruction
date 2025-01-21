@@ -54,8 +54,6 @@ def run_experiment():
 
 
 
-    argo_mean_in_gnn = False
-    argo_mean_in_embedding = True
 
 
 
@@ -102,7 +100,6 @@ def run_experiment():
     n_iters = 5
     random_seeds = np.random.randint(0, 1000, n_iters)
 
-    random_seeds
 
 
 
@@ -130,8 +127,7 @@ def run_experiment():
     stride_test_window = 4
     validation_years_on_each_side = 5
 
-    # start_years = np.arange(year_min + validation_years_on_each_side +1, year_max - test_year_count - 1, stride_test_window)
-    start_years = np.arange(2048, year_max - test_year_count - 1, stride_test_window)
+    start_years = np.arange(year_min + validation_years_on_each_side +1, year_max - test_year_count - 1, stride_test_window)
 
     for test_start_year in start_years:
          
@@ -144,17 +140,29 @@ def run_experiment():
 
         dl = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, collate_fn=merge_profiles_max_profiles, num_workers=8)
         val_dl = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=merge_profiles_max_profiles, num_workers=4)
-        test_dl = DataLoader(test_dataset, batch_size=32, shuffle=False, collate_fn=merge_profiles_max_profiles, num_workers=4)
 
 
         n_features = train_dataset.X.shape[2]
 
 
-        for version in ['v5', 'v6']:      
-
+        for version in ['v5-std', 'v5-std-embedmean', 'v6']:      
             r2_scores = []
             mae_scores = []
             mse_scores = []
+
+            if version == 'v5-full':
+                argo_mean_in_gnn = True
+                argo_mean_in_embedding = False
+                n_compartments = 3
+            elif version == 'v5-std':
+                argo_mean_in_gnn = False
+                argo_mean_in_embedding = False
+                n_compartments = 13
+            elif version == 'v5-std-embedmean':
+                argo_mean_in_gnn = False
+                argo_mean_in_embedding = True
+                n_compartments = 11
+
 
             for i in range(n_iters):
 
