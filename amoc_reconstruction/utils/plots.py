@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score, mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 
 
 def time_window_plot():
@@ -62,7 +63,7 @@ def gt_to_prediction_scatter():
     plt.savefig(experiment_path / f'AMOC_reconstruction.png')
 
 
-def prediction_plot():
+def prediction_plot(experiment_path, target_variable, test_predictions, suffix = None):
     fig = plt.figure(figsize=(10, 3))
     ax = fig.add_subplot(1,1,1)
 
@@ -84,7 +85,13 @@ def prediction_plot():
     ax.set_xlabel('Time')
 
     # plt.text(0.01, 0.9, f'R2 {r2_score(t_umo_obs.sel(time = test_predictions.time, method = "nearest").dv_dz_times_X.values, test_predictions.values)*100:.2f}%; MAE {mae_error:.2f}; MSE {mean_squared_error(t_umo_obs.sel(time = test_predictions.time, method = "nearest").dv_dz_times_X.values, test_predictions.values):.2f}', transform=ax.transAxes)
-    plt.text(0.01, 0.9,f'R2 {r2_score(rapid_t.values, test_predictions_t.values)*100:.2f}%; MAE {mean_absolute_error(rapid_t.values, test_predictions_t.values):.2f}; MSE {mean_squared_error(rapid_t.values, test_predictions_t.values):.2f}', transform=ax.transAxes)
+    plt.text(0.01, 0.9,f'R2 {r2_score(rapid_t.values, test_predictions_t.values)*100:.2f}%; MAE {mean_absolute_error(rapid_t.values, test_predictions_t.values):.2f}; RMSE {root_mean_squared_error(rapid_t.values, test_predictions_t.values):.2f}; MAPE {mean_absolute_percentage_error(rapid_t.values, test_predictions_t.values)*100.0:.2f}', transform=ax.transAxes)
     plt.title('AMOC Reconstruction at Rapid Latitude 26.5°N by Argo profiles')
     fig.tight_layout()
-    plt.savefig(experiment_path / f'argo_nn_reconstruction.png')
+
+    if not experiment_path.exists():
+        experiment_path.mkdir()
+
+    plt.savefig(experiment_path / f'argo_nn_reconstruction_{suffix}.png')
+
+    print(f'Saved plot to {experiment_path / f"argo_nn_reconstruction_{suffix}.png"}')

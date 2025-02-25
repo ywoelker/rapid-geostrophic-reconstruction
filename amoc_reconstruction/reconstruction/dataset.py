@@ -26,8 +26,9 @@ class ProfileDataset(Dataset):
         self.using_transport_from_previous_year = using_transport_from_previous_year
         self.using_missing_indices = using_missing_indices
         self.use_deep_dvdz = use_deep_dvdz
-        self.global_indices = global_indices    
-
+        self.global_indices = global_indices  
+        self.time_smoothing = time_smoothing      
+        self.lat_bounds = lat_bounds
 
         self.fs = fs
         self.ac = ac
@@ -52,6 +53,11 @@ class ProfileDataset(Dataset):
         self.lat_scaled = (self.lat - lat_bounds[0]) / (lat_bounds[1] - lat_bounds[0])  
 
         self.days_scaled = (self.days + (pd.Timedelta(time_smoothing).days / 2)) / pd.Timedelta(time_smoothing).days
+
+        self.use_fc_input = True
+        self.use_ac_input = True
+        self.use_ws_input = True
+        self.use_ar_input = True
         
         for i in range(len(self)):
             mask = self.mask[i]
@@ -119,9 +125,37 @@ class ProfileDataset(Dataset):
         else:
             dv_dz = np.zeros_like(self.dv_dz_per_compartment[idx])
 
+        
+        if self.use_fc_input:
+            fs = self.fs[idx]
+        else:
+            fs = np.zeros_like(self.fs[idx])
+
+        if self.use_ac_input:
+            ac = self.ac[idx]
+        else:
+            ac = np.zeros_like(self.ac[idx])
+
+        if self.use_ws_input:
+            ws = self.ws[idx]
+        else:
+            ws = np.zeros_like(self.ws[idx])
+
+        if self.use_ar_input:
+            X_per_comp = self.X_per_compartment[idx]
+            lon_per_comp   = self.lon_per_compartment[idx]
+            lat_per_comp   = self.lat_per_compartment[idx]
+            days_per_comp  = self.days_per_compartment[idx]
+        else:
+            X_per_comp = [np.zeros_like(xi) for xi in self.X_per_compartment[idx]]
+            lon_per_comp = [np.zeros_like(li) for li in self.lon_per_compartment[idx]]
+            lat_per_comp = [np.zeros_like(li) for li in self.lat_per_compartment[idx]]
+            days_per_comp = [np.zeros_like(di) for di in self.days_per_compartment[idx]]
+
+        return X_per_comp, self.y[idx], y_prev, lon_per_comp, lat_per_comp, dv_dz, days_per_comp, missing_indices_per_compartment, fs, ac, ws, self.total_moc[idx]
 
 
-        return self.X_per_compartment[idx], self.y[idx], y_prev, self.lon_per_compartment[idx], self.lat_per_compartment[idx], dv_dz, self.days_per_compartment[idx], missing_indices_per_compartment, self.fs[idx], self.ac[idx], self.ws[idx], self.total_moc[idx]
+        # return self.X_per_compartment[idx], self.y[idx], y_prev, self.lon_per_compartment[idx], self.lat_per_compartment[idx], dv_dz, self.days_per_compartment[idx], missing_indices_per_compartment, self.fs[idx], self.ac[idx], self.ws[idx], self.total_moc[idx]
 
 # def _load_merged_argo_dataset_and_tumo_obs(time_smoothing, lat_bounds = None):
 #     ds_argo_merged = xr.open_dataset(dataset_path / f'../../ds_argo_obs.nc')
@@ -194,7 +228,7 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
     florida_current = None
     wind_stress = None
     
-    assert len(suffixe) <= 2, 'Longer? Think on the t_delta '
+    # assert len(suffixe) <= 2, 'Longer? Think on the t_delta '
 
     for suffix in suffixe:
         ds_argo_merged_cycle, t_umo_obs_cycle, ds_pos_cycle, dv_dz_cycle, total_moc_cycle, antilles_current_cycle, florida_current_cycle, wind_stress_cycle = load_merged_argo_dataset_and_tumo(
@@ -211,6 +245,23 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
         )
 
         if ds_argo_merged is None:
+            if len(suffixe) > 4:
+                referenced_to_1800 = (ds_argo_merged_cycle.time.min() - np.datetime64('1800-01-01'))
+                print('Moving the time to 1800 with an offset of ', referenced_to_1800)
+                print('Test if we can substract this from the test_period_start', np.datetime64('2005-01-01') - referenced_to_1800)
+                ds_argo_merged_cycle['time'] = ds_argo_merged_cycle['time'] - referenced_to_1800
+                t_umo_obs_cycle['time'] = t_umo_obs_cycle['time'] - referenced_to_1800
+                ds_pos_cycle['time'] = ds_pos_cycle['time'] - referenced_to_1800
+                dv_dz_cycle['time'] = dv_dz_cycle['time'] - referenced_to_1800
+                total_moc_cycle['time'] = total_moc_cycle['time'] - referenced_to_1800
+                antilles_current_cycle['time'] = antilles_current_cycle['time'] - referenced_to_1800
+                florida_current_cycle['time'] = florida_current_cycle['time'] - referenced_to_1800
+                wind_stress_cycle['time'] = wind_stress_cycle['time'] - referenced_to_1800
+                ds_argo_merged_cycle['time_1d'] = ds_argo_merged_cycle['time_1d'] - referenced_to_1800
+            else:
+                referenced_to_1800 = None 
+            
+            
             ds_argo_merged = ds_argo_merged_cycle
             t_umo_obs = t_umo_obs_cycle
             ds_pos_sim = ds_pos_cycle
@@ -219,6 +270,8 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
             antilles_current = antilles_current_cycle
             florida_current = florida_current_cycle
             wind_stress = wind_stress_cycle
+
+            
         else:
             t_delta = ds_argo_merged.time.max() - ds_argo_merged_cycle.time.min() + pd.Timedelta(time_smoothing)
             ds_argo_merged_cycle['time'] = ds_argo_merged_cycle['time'] + t_delta 
@@ -242,7 +295,7 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
             florida_current = xr.concat([florida_current, florida_current_cycle], dim = 'time')
             wind_stress = xr.concat([wind_stress, wind_stress_cycle], dim = 'time')
 
-    return ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta if len(suffixe) > 1 else None, total_moc, antilles_current, florida_current, wind_stress
+    return ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta if len(suffixe) > 1 else None, total_moc, antilles_current, florida_current, wind_stress, referenced_to_1800
 
 
 def filter_ds_argo_data(ds_argo_merged_10days, deep_argo = False):
@@ -287,7 +340,8 @@ def split_dataset_into_training_validation_testing_profile_datasets(
         lat_bounds,
         using_transport_from_previous_year,
         using_missing_indices,
-        use_deep_dvdz
+        use_deep_dvdz, 
+        backwards_timeshift = None
 ):
 
     # Prepare a dataset by 1) splitting the data, 2) scaling the input data 
@@ -319,18 +373,28 @@ def split_dataset_into_training_validation_testing_profile_datasets(
             val_indices = indices[-int((train_ratio + val_ratio) * indices.shape[0]): -int(train_ratio * indices.shape[0])]
             test_indices = indices[:-int((train_ratio + val_ratio) * indices.shape[0])]
     else:
-        test_indices = t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_start_year}-01-01', f'{test_end_year}-01-01')).ti.values
-        # test_indices = t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice('2055-01-01', None)).ti.values
-        valid_indices_1 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_start_year - validation_years_on_each_side}-01-01', f'{test_start_year}-01-01')).ti.values
-        valid_indices_2 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_end_year}-01-01',f'{test_end_year + validation_years_on_each_side}-01-01')).ti.values
-        val_indices = np.concatenate([valid_indices_1, valid_indices_2])
-        # val_indices =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice('2035-01-01', '2055-01-01')).ti.values
-
-
-        # test_indices = t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice('2010-01-01', '2023-08-01')).ti.values
-        # valid_indices_1 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice('2000-01-01', '2010-01-01')).ti.values
-        # valid_indices_2 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice('2025-01-01','2035-01-01')).ti.values
-        # val_indices = np.concatenate([valid_indices_1, valid_indices_2])
+        if backwards_timeshift is None:
+            test_indices = t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_start_year}-01-01', f'{test_end_year}-01-01')).ti.values
+            valid_indices_1 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_start_year - validation_years_on_each_side}-01-01', f'{test_start_year}-01-01')).ti.values
+            valid_indices_2 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time)))).sel(time = slice(f'{test_end_year}-01-01',f'{test_end_year + validation_years_on_each_side}-01-01')).ti.values
+            val_indices = np.concatenate([valid_indices_1, valid_indices_2])
+        else:
+            test_indices = t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time))))\
+            .sel(time = slice(
+                    np.datetime64(f'{test_start_year}-01-01') - backwards_timeshift, 
+                    np.datetime64(f'{test_end_year}-01-01') - backwards_timeshift)
+                ).ti.values
+            valid_indices_1 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time))))\
+                .sel(time = slice(
+                    np.datetime64(f'{test_start_year - validation_years_on_each_side}-01-01') -backwards_timeshift, 
+                    np.datetime64(f'{test_start_year}-01-01') - backwards_timeshift)
+                ).ti.values
+            valid_indices_2 =  t_umo_10days.assign_coords(ti = ('time', np.arange(len(t_umo_10days.time))))\
+                .sel(time = slice(
+                    np.datetime64(f'{test_end_year}-01-01') - backwards_timeshift,
+                    np.datetime64(f'{test_end_year + validation_years_on_each_side}-01-01') - backwards_timeshift)
+                ).ti.values
+            val_indices = np.concatenate([valid_indices_1, valid_indices_2])
 
 
 
@@ -339,6 +403,7 @@ def split_dataset_into_training_validation_testing_profile_datasets(
         train_mask = ~np.isin(np.arange(t_umo_10days.time.shape[0]), np.concatenate((val_indices, test_indices)))
         train_indices = np.arange(t_umo_10days.time.shape[0])[train_mask]
 
+        print(len(train_indices), len(val_indices), len(test_indices))
 
 
 
@@ -353,6 +418,11 @@ def split_dataset_into_training_validation_testing_profile_datasets(
         std_transport = xr.open_dataset('../rapid-geostrophic-reconstruction/data/train_transport_std_argo.nc').dv_dz_times_X
     else:
         rho_std = ds_argo_merged_10days.where(ds_argo_merged_10days.profile_mask).isel(time = train_indices).std(['time', 'pos']).rho
+        ## Making the changes in the deeper layers not that significant
+        # grouped_std = rho_std.groupby_bins('z', [-2000, -800,-200, -100,-50, 0], labels = [-1400,-500,-150,-75,-25]).mean()
+        # rho_std = grouped_std.sel(z_bins = rho_std.z, method = 'nearest')
+
+
         temperature_std = ds_argo_merged_10days.where(ds_argo_merged_10days.profile_mask).isel(time = train_indices).std(['time', 'pos']).temperature
         salinity_std = ds_argo_merged_10days.where(ds_argo_merged_10days.profile_mask).isel(time = train_indices).std(['time', 'pos']).salinity
         std_transport = t_umo_10days.isel(time = train_indices).std('time').dv_dz_times_X
@@ -393,6 +463,10 @@ def split_dataset_into_training_validation_testing_profile_datasets(
         salinity_mean=salinity_mean,
         salinity_std=salinity_std,
     )
+
+    # Detrend the rho data from the training indices
+    
+    # ds_argo_merged_10days_std = ds_argo_merged_10days_std.isel(z = [2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28])
 
     ds_argo_merged_10days_std = ds_argo_merged_10days_std.fillna(0)
 
@@ -545,11 +619,11 @@ def split_dataset_into_training_validation_testing_profile_datasets(
         val_missing_indices = np.zeros((val_indices.shape[0], 4))
         test_missing_indices = np.zeros((test_indices.shape[0], 4))
 
-    train_dataset = ProfileDataset(train_X_scaled, train_y, train_y_prev_scaled, train_X_mask, train_X_lon, train_X_lat, train_dv_dz_moorings_scaled, train_X_days, compartments, train_missing_indices, train_fs_scaled, train_ac_scaled, train_ws_scaled, train_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, train_indices)
-    val_dataset = ProfileDataset(val_X_scaled, val_y, val_y_prev_scaled, val_X_mask, val_X_lon, val_X_lat, val_dv_dz_moorings_scaled, val_X_days, compartments, val_missing_indices, val_fs_scaled, val_ac_scaled, val_ws_scaled, val_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, val_indices)
-    test_dataset = ProfileDataset(test_X_scaled, test_y, test_y_prev_scaled, test_X_mask, test_X_lon, test_X_lat, test_dv_dz_moorings_scaled, test_X_days, compartments, test_missing_indices, test_fs_scaled, test_ac_scaled, test_ws_scaled, test_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, test_indices)
+    train_dataset = ProfileDataset(train_X_scaled, train_y_scaled, train_y_prev_scaled, train_X_mask, train_X_lon, train_X_lat, train_dv_dz_moorings_scaled, train_X_days, compartments, train_missing_indices, train_fs_scaled, train_ac_scaled, train_ws_scaled, train_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, train_indices)
+    val_dataset = ProfileDataset(val_X_scaled, val_y_scaled, val_y_prev_scaled, val_X_mask, val_X_lon, val_X_lat, val_dv_dz_moorings_scaled, val_X_days, compartments, val_missing_indices, val_fs_scaled, val_ac_scaled, val_ws_scaled, val_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, val_indices)
+    test_dataset = ProfileDataset(test_X_scaled, test_y_scaled, test_y_prev_scaled, test_X_mask, test_X_lon, test_X_lat, test_dv_dz_moorings_scaled, test_X_days, compartments, test_missing_indices, test_fs_scaled, test_ac_scaled, test_ws_scaled, test_total_moc_scaled, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, test_indices)
 
-    return train_dataset, val_dataset, test_dataset, (mean_total_moc, std_total_moc)
+    return train_dataset, val_dataset, test_dataset, (mean_total_moc, std_total_moc, mean_transport, std_transport)
 
 def merge_profiles(data):
     """

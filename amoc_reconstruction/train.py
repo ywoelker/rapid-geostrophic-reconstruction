@@ -21,7 +21,7 @@ def move_data_to_device(data, device):
     else:
         return data.to(device)
 
-def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, verbose = True):
+def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, verbose = True, geostrophic_target = False, lr = 1e-3, wd = 1e-6, num_epochs = 80):
 
     if seed is not None:
         torch.random.manual_seed(seed)
@@ -32,9 +32,8 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
     # criterion = nn.L1Loss()
     criterion = nn.MSELoss()
 
-    optimizer_all = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+    optimizer_all = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
-    num_epochs = 200
     # lr_scheduler_all = optim.lr_scheduler.MultiStepLR(optimizer_all, milestones=[15,30, 80, 100, 150], gamma=.5)
     lr_scheduler_all = optim.lr_scheduler.CosineAnnealingLR(optimizer_all, T_max=num_epochs, eta_min=1e-6)
 
@@ -45,7 +44,8 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
 
     train_losses = []
 
-    # torch.autograd.set_detect_anomaly(True)
+    torch.autograd.set_detect_anomaly(True)
+
     # model.node_assigner.requires_grad_(False)
 
     for epoch in range(num_epochs):  # loop over the dataset multiple times
@@ -70,13 +70,22 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
         for i, data in enumerate(train_dataloader, 0):
             # get the inputs; data is a list of [inputs, labels]
             X, mask_padded, y, y_prev, lon, lat, dvdz, days, missing_indices, fs, ac, ws, total_moc = move_data_to_device(data, device)
+
+            # if geostrophic_target:
+            #     fs = torch.zeros_like(fs)
+            #     ac = torch.zeros_like(ac)
+            #     ws = torch.zeros_like(ws)
             
+            target = total_moc
+            if geostrophic_target:
+                target = y
+
 
             # zero the parameter gradients
             optimizer_all.zero_grad()
 
             outputs, _ = model(X, mask_padded, lon, lat, dvdz, days, y_prev, missing_indices, fs, ac, ws)
-            loss = criterion(outputs, total_moc)
+            loss = criterion(outputs, target)
             loss.backward()
 
             optimizer_all.step()
@@ -90,9 +99,14 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
         with torch.no_grad():
             for data in val_dataloader:
                 X, mask_padded, y, y_prev, lon, lat, dvdz, days, missing_indices, fs, ac, ws, total_moc = move_data_to_device(data, device)
+
+                target = total_moc
+                if geostrophic_target:
+                    target = y
+
                 val_prediction, _ = model(X, mask_padded, lon, lat, dvdz, days, y_prev, missing_indices, fs, ac, ws)
                 # val_prediction = val_prediction.detach()
-                val_loss = criterion(val_prediction, total_moc).detach().cpu().item()
+                val_loss = criterion(val_prediction, target).detach().cpu().item()
 
                 total_val_loss += val_loss
 
@@ -130,7 +144,7 @@ def add_noise(noise, X):
         for compartment_i in range(len(X[batch_i])):
             X[batch_i][compartment_i] = X[batch_i][compartment_i] + noise * torch.randn_like(X[batch_i][compartment_i])
 
-def make_predictions(dataset, model, temporal_values, mean_total_moc, std_total_moc, noise = 0.0, device = 'cpu'):
+def make_predictions(dataset, model, temporal_values, mean_total_moc, std_total_moc, noise = 0.0, device = 'cpu', geostrophic_target = False):
     dataloader = DataLoader(dataset, batch_size=32, shuffle=False, collate_fn=merge_profiles_max_profiles, num_workers=4)
 
     test_predictions = []
@@ -148,6 +162,16 @@ def make_predictions(dataset, model, temporal_values, mean_total_moc, std_total_
 
     for data in dataloader:
         X, mask_padded, y, y_prev, lon, lat, dvdz, days, missing_indices, fs, ac, ws, total_moc = move_data_to_device(data, device)
+        
+        # if geostrophic_target:
+        #     fs = torch.zeros_like(fs)
+        #     ac = torch.zeros_like(ac)
+        #     ws = torch.zeros_like(ws)
+
+        target = total_moc
+        if geostrophic_target:
+            target = y
+
 
         if noise > 0:
             add_noise(noise, X)
@@ -158,11 +182,11 @@ def make_predictions(dataset, model, temporal_values, mean_total_moc, std_total_
         # test_hidden_space = inner_values[0].detach()
         # embedding_space = inner_values[1].detach()
 
-        test_loss = criterion(test_prediction, total_moc).item()
+        test_loss = criterion(test_prediction, target).item()
 
         total_test_loss += test_loss
         test_predictions.append(test_prediction)
-        ground_truth.append(total_moc)
+        ground_truth.append(target)
         # test_hidden_spaces.append(test_hidden_space)
         # test_embedding_space.append(embedding_space)
 
