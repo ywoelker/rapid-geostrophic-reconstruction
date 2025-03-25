@@ -17,15 +17,9 @@ conda activate amoc_recons
 
 
 dask_url='tcp://10.0.4.100:8786'
+smoothing_days=90
 
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 1 --smoothing_days 90;
-
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 2 --smoothing_days 90;
-
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 3 --smoothing_days 90;
-
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 4 --smoothing_days 90;
-
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 5 --smoothing_days 90;
-
-python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number 6 --smoothing_days 90;
+for cycle_number in {1..6} 
+do
+    python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number ${cycle_number} --smoothing_days ${smoothing_days};
+done
