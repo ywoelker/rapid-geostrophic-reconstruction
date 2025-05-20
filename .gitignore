@@ -8,3 +8,7 @@ datasets/*
 **/*.pyc
 **/*.egg-info/*
 **/__pycache__/*
+slurm*.out
+*.png
+*.txt
+*.pt

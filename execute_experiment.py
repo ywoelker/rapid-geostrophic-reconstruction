@@ -13,6 +13,9 @@ from amoc_reconstruction.utils.plots import prediction_plot
 from sklearn.metrics import r2_score, mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 import xarray as xr
 
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
 
 def parse_arguments():
 
@@ -20,18 +23,22 @@ def parse_arguments():
     
     parser.add_argument('--input_feat', type=str, default='ArFcAcWs', help = 'Input features ordering does not matter [Ar-Argo, Fc-Florida Current, Ac-Antilles Current, Ws-Wind Stress]')
 
-    parser.add_argument('--input_smoothing', type=int, default=90, help = 'Input smoothing window size')
+    parser.add_argument('--input_smoothing', type=int, default=10, help = 'Input smoothing window size')
     parser.add_argument('--output_smoothing', type=int, default=None, help = 'Output smoothing window size (default = input_smoothing)')
     parser.add_argument('--depth_information', type=str, default = 'mooring', choices=['none', 'deep', 'mooring'])
     parser.add_argument('--moc_type', choices=['total', 'geostrophic'], default='total')
 
     parser.add_argument('--input_cycles', type=str, default='1,2', help='A comma sparated list of the input cycles. For all cycles \'all\' is possible.') 
     parser.add_argument('--test_cycle', default = None, type=int, help='Cycle to be used for testing. This attribute or test_period has to be set but not both.')
-    parser.add_argument('--test_period', default='2005,2020', type=str, help='Period to be used for testing as a string of an inclusive lower year and an explusive upper bound (e.g. 2005,2020). This attribute or test_cycle has to be set but not both.')   
+    parser.add_argument('--test_period', default='2004,2024', type=str, help='Period to be used for testing as a string of an inclusive lower year and an explusive upper bound (e.g. 2005,2020). This attribute or test_cycle has to be set but not both.')   
     parser.add_argument('--validation_length', type=int, default=5, help='Length of the validation period in years for each side of the test period.')
-    parser.add_argument('--n_iters', type=int, default=5, help='Number of iterations to run the experiment.')
+    parser.add_argument('--n_iters', type=int, default=11, help='Number of iterations to run the experiment.')
 
-    
+    parser.add_argument('--paperdraft_index', type=str, default=None, help='Index of the paperdraft to be used for the experiment')
+
+    parser.add_argument('--n_compartments', type = int, default = None, help = 'Number of compartments to be used in the model. Default is 27 for 10D, 30D and 90D and 100 for 365D and 1825D.')
+    parser.add_argument('--n_embedding', type=int, default=None, help='Number of embedding dimensions to be used in the model. Default is 12 for 10D, 30D and 90D and 8 for 365D and 1825D.')
+    parser.add_argument('--verbose_training', type=str2bool, default=False, help='Verbose training output')
     return parser.parse_args()
 
 def compute_skill(ground_truth, prediction):
@@ -46,6 +53,50 @@ def compute_skill(ground_truth, prediction):
     }
 
 
+paper_draft_path = Path('../rapid-geostrophic-reconstruction/paperdraft.json')
+def is_paperdraft_experiment_started(paper_draft_id):
+    if paper_draft_id is None:
+        return False
+
+    if paper_draft_path.exists():
+        with open('../rapid-geostrophic-reconstruction/paperdraft.json', 'r') as f:
+            paper_draft_status = json.load(f)
+    else:
+        return False
+
+    return paper_draft_id in paper_draft_status
+
+def log_paperdraft_experiment_started(experiment_path, paper_draft_id):
+    if paper_draft_id is None:
+        return
+
+    if paper_draft_path.exists():
+        with open('../rapid-geostrophic-reconstruction/paperdraft.json', 'r') as f:
+            paper_draft_status = json.load(f)
+    else:
+        paper_draft_status = {}
+
+    paper_draft_status[paper_draft_id] = {
+        'status': 'running',
+        'experiment_path': str(experiment_path), 
+        'start_time': datetime.now().strftime("%Y%m%d_%H%M%S")
+    }
+
+    with open('../rapid-geostrophic-reconstruction/paperdraft.json', 'w') as f:
+        json.dump(paper_draft_status, f, indent=4)
+
+def log_paperdraft_experiment_finished(paper_draft_id):
+    if paper_draft_id is None:
+        return
+
+    with open('../rapid-geostrophic-reconstruction/paperdraft.json', 'r') as f:
+        paper_draft_status = json.load(f)
+
+    paper_draft_status[paper_draft_id]['status'] = 'finished'
+    paper_draft_status[paper_draft_id]['end_time'] = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    with open('../rapid-geostrophic-reconstruction/paperdraft.json', 'w') as f:
+        json.dump(paper_draft_status, f, indent=4)
 
 
 """
@@ -61,15 +112,20 @@ def main(args):
     lat_bounds = (25, 30)
     target_reference_level = 4800
 
+    if args.depth_information == 'mooring':
+        missing_values_in_target = True
+        using_missing_indices = True
+    else:
+        missing_values_in_target = False
+        using_missing_indices = False
+
     if args.moc_type == 'total':
         missing_values_in_target = False
         using_missing_indices = False
         using_transport_from_previous_year = False
         geostrophic_prediction = False
     elif args.moc_type == 'geostrophic':
-        if args.depth_information == 'mooring':
-            missing_values_in_target = True
-            using_missing_indices = True
+        
         using_transport_from_previous_year = False
         geostrophic_prediction = True
     else:
@@ -94,8 +150,8 @@ def main(args):
         '10D': 32,
         '30D': 16,
         '90D': 16,
-        '365D': 8,
-        '1825D': 8
+        '365D': 6,
+        '1825D': 4
     }
 
 
@@ -103,8 +159,8 @@ def main(args):
         '10D': 27,
         '30D': 27,
         '90D': 27,
-        '365D': 27,
-        '1825D': 27,
+        '365D': 100 ,
+        '1825D': 100,
     }
 
     train_batch_size = train_batch_sizes[time_smoothing]
@@ -118,12 +174,18 @@ def main(args):
     validation_years_on_each_side = args.validation_length
         
     assert target_reference_level in [2000, 4800], "Only 2000 and 4800 are supported as reference levels"
-    n_compartments = n_compartments_for_smoothing[time_smoothing]
-    n_embedding = 12
+    
+    
+    if args.n_compartments is not None:
+        n_compartments = args.n_compartments
+    else:
+        n_compartments = n_compartments_for_smoothing[time_smoothing]
+    n_embedding = 12 if args.input_smoothing < 365 else 8
 
+    import uuid
 
-    experiment_path = Path(f'../rapid-geostrophic-reconstruction/figs/experiment_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
-    dataset_path = Path(f'../rapid-geostrophic-reconstruction/datasets/smoothing_{smoothing_days}_days/argo_after_2012/paperdraft/')
+    experiment_path = Path(f'../rapid-geostrophic-reconstruction/figs/experiment_{datetime.now().strftime("%Y%m%d_%H%M%S")}_{uuid.uuid4().hex[:4]}')
+    dataset_path = Path(f'../rapid-geostrophic-reconstruction/datasets/smoothing_{smoothing_days}_days/argo_after_2012/paperdraft/') # TODO: Change when changing cycles
 
     total_moc_path = Path('../rapid-geostrophic-reconstruction/datasets/moc_total/')
     antilles_current_path = Path('../rapid-geostrophic-reconstruction/datasets/antilles_current/')
@@ -145,10 +207,12 @@ def main(args):
         device = 'cuda'
         print('Using GPU')
 
-    lr = 1e-3
-    wd = 1e-6
+    lr = 1e-3 if args.input_smoothing < 365 else 3e-3
+    wd = 1e-6 if args.input_smoothing < 365 else 1e-5
 
-
+    if is_paperdraft_experiment_started(args.paperdraft_index):
+        print(f'Experiment {args.paperdraft_index} is already running')
+        return
 
     ### Experiment 20012025
     import numpy as np
@@ -158,14 +222,16 @@ def main(args):
 
 
 
-    cycle_suffixe = ['1st_7020', '2nd_5820', '3rd_5820', '4th_5820', '5th_5820', '6th_5820']
+    cycle_suffixe = ['1st_7024', '2nd_5824', '3rd_5824', '4th_5824', '5th_5824', '6th_5824']
+    # cycle_suffixe = ['1st_7020', '2nd_5820', '3rd_5820', '4th_5820', '5th_5820', '6th_5820']
+    # cycle_suffixe = ['1st_70None', '2nd_NoneNone']
 
     if args.input_cycles == 'all':
         selected_cycles = cycle_suffixe
     else:
         selected_cycles = [cycle_suffixe[i-1] for i in map(int, args.input_cycles.split(','))]
 
-    ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta, total_moc, antilles_current, florida_current, wind_stress, time_backwardshift = load_merged_argo_dataset_and_tumo_cycles(
+    ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_deltas, total_moc, antilles_current, florida_current, wind_stress, time_backwardshift = load_merged_argo_dataset_and_tumo_cycles(
         selected_cycles,
         dataset_path,
         ref_folder,
@@ -190,6 +256,31 @@ def main(args):
         t_umo_obs = t_umo_obs.rolling(time=rolling_factor, min_periods=1, center=True).mean()
 
 
+    def get_years_from_cycle_suffix(cycle_suffix):
+        start_year = int(cycle_suffix[-4:-2]) + 1900
+        end_year = int(cycle_suffix[-2:]) + 2000
+
+        return start_year, end_year
+
+    if args.test_cycle is not None:
+
+
+        if args.test_cycle >= 3 and args.test_cycle <= 6:
+            start_year_cycle, end_year_cycle = get_years_from_cycle_suffix(cycle_suffixe[args.test_cycle - 1])
+
+            start_date = np.datetime64(f'{start_year_cycle}-01-01') + t_deltas[args.test_cycle -2] + np.timedelta64(smoothing_days, 'D')
+            end_date = start_date + np.timedelta64( (end_year_cycle - start_year_cycle) * 365, 'D') 
+
+            test_start_year = start_date.values.astype('datetime64[Y]').astype(int) + 1970
+            test_end_year = end_date.values.astype('datetime64[Y]').astype(int) + 1970
+
+            time_backwardshift = None # we can set this to None here because we used it implicit in the t_deltas such that test_start_year and test_end_year are also considering that the first cycle starts now at 1800
+
+        else:
+            raise NotImplementedError(f'Test cycle {args.test_cycle} is not supported')
+    
+
+
     train_dataset, val_dataset, test_dataset, (total_moc_mean, total_moc_std, geostrophic_moc_mean, geostorphic_moc_std) = split_dataset_into_training_validation_testing_profile_datasets(
         False, test_start_year, test_end_year, validation_years_on_each_side, t_umo_obs, ds_argo_merged, add_tmp, add_sal, deep_argo, False, total_moc, florida_current, antilles_current, wind_stress, dv_dz_obs, missing_values_in_target, ds_pos_sim, compartments, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, time_backwardshift
     )
@@ -208,6 +299,8 @@ def main(args):
     dl = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, collate_fn=merge_profiles_max_profiles, num_workers=8)
     val_dl = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=merge_profiles_max_profiles, num_workers=4)
     # test_dl = DataLoader(test_dataset, batch_size=32, shuffle=False, collate_fn=merge_profiles_max_profiles, num_workers=4)
+
+    log_paperdraft_experiment_started(experiment_path, args.paperdraft_index)
 
 
     n_features = train_dataset.X.shape[2]
@@ -231,11 +324,11 @@ def main(args):
         model = ProfileModelSUSTeR5_fast(
             n_features, n_compartments,n_embedding, 
             train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner,
-            argo_mean_in_embedding=True, argo_mean_in_gnn_input=False
+            argo_mean_in_embedding=True, argo_mean_in_gnn_input=False,assignment_threshold=.1, embedding_dropout=.34
         ).to(device)
 
     
-        best_model = train(model, dl, val_dl, device, verbose = True, geostrophic_target= geostrophic_prediction, lr=lr, wd = wd, num_epochs = 1)
+        best_model = train(model, dl, val_dl, device, verbose = args.verbose_training, geostrophic_target= geostrophic_prediction, lr=lr, wd = wd, num_epochs = 80)
 
         if geostrophic_prediction:
             test_predictions, (test_hidden_spaces, test_embedding_spaces, test_gt_transport, test_inner_values) = make_predictions(test_dataset, best_model, ds_argo_merged.isel(time = test_dataset.global_indices).time, geostrophic_moc_mean, geostorphic_moc_std,device = device, geostrophic_target=True)
@@ -369,7 +462,7 @@ def main(args):
 
         # Execute the averaging experiment
         smoothing_skill = {}
-        for smoothing_days in [10, 30, 90, 365]:
+        for smoothing_days in [10, 30, 90, 365, 1825]:
             
             relevant_smoothing = args.input_smoothing if args.output_smoothing is None else args.output_smoothing
             if smoothing_days <= relevant_smoothing:
@@ -503,7 +596,14 @@ def main(args):
         'embedding_dim': n_embedding,
         'weight_decay': wd,
         'seeds': [int(rs) for rs in random_seeds],
+        'test_start_year': int(test_start_year),
+        'test_end_year': int(test_end_year),
+        'backward_shift': time_backwardshift.values.astype(int).astype(str) if time_backwardshift is not None else None,
+        't_deltas': [td.values.astype(int).astype(str) for td in t_deltas],
     }
+
+    print(configuration)
+
 
     configuration_path = experiment_path / 'configuration.json'
     with open(configuration_path, 'w') as f:
@@ -512,7 +612,7 @@ def main(args):
 
 
 
-
+    log_paperdraft_experiment_finished(args.paperdraft_index)
 
 
 if __name__ == '__main__':

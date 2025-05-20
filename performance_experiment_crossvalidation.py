@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from torch.utils.data import DataLoader
 from amoc_reconstruction.reconstruction.model import init_assignment_module
-from amoc_reconstruction.reconstruction.model import ProfileModelSUSTeR5_fast, ProfileModelSUSTeR6
+from amoc_reconstruction.reconstruction.model import ProfileModelSUSTeR5_fast, ProfileModelSUSTeR6, ProfileModelSUSTeR6_wind
 from amoc_reconstruction.train import train, make_predictions
 from amoc_reconstruction.reconstruction.dataset import merge_profiles_max_profiles
 from amoc_reconstruction.reconstruction.dataset import load_merged_argo_dataset_and_tumo_cycles, filter_ds_argo_data, split_dataset_into_training_validation_testing_profile_datasets
@@ -28,7 +28,7 @@ def run_experiment():
 
     using_missing_indices = False
     using_transport_from_previous_year = False
-    use_deep_dvdz = False
+    use_deep_dvdz = True
     deep_argo = False
     geostrophic_prediction = False
 
@@ -43,7 +43,7 @@ def run_experiment():
 
     n_compartments_for_smoothing = {
         '10D': 49,
-        '30D': 3,
+        '30D': 11,
         '90D': 7,
         '365D': 42,
     }
@@ -63,7 +63,7 @@ def run_experiment():
     assert target_reference_level in [2000, 4800], "Only 2000 and 4800 are supported as reference levels"
     version = 'v5'
     n_compartments = n_compartments_for_smoothing[time_smoothing]
-    n_embedding = 8
+    n_embedding = 12
 
     distance_assignment_module  = 'distance'
 
@@ -98,7 +98,7 @@ def run_experiment():
     ### Experiment 20012025
     import numpy as np
 
-    n_iters = 5
+    n_iters = 3
     random_seeds = np.random.randint(0, 1000, n_iters)
 
 
@@ -121,11 +121,11 @@ def run_experiment():
     ds_argo_merged = filter_ds_argo_data(ds_argo_merged, deep_argo)
 
 
-    test_year_count = 10
+    test_year_count = 20
 
     year_min = ds_argo_merged.time.dt.year.min()
     year_max = ds_argo_merged.time.dt.year.max()
-    stride_test_window = 4
+    stride_test_window = 10
     validation_years_on_each_side = 5
 
     start_years = np.arange(year_min + validation_years_on_each_side +1, year_max - test_year_count - 1, stride_test_window)
@@ -146,7 +146,7 @@ def run_experiment():
         n_features = train_dataset.X.shape[2]
 
 
-        for version in ['v5-std', 'v5-std-embedmean', 'v6']:      
+        for version in ['v6-wo-argo', 'v5-std-embedmean', 'v6-aux']:      
             r2_scores = []
             mae_scores = []
             mse_scores = []
@@ -162,7 +162,19 @@ def run_experiment():
             elif version == 'v5-std-embedmean':
                 argo_mean_in_gnn = False
                 argo_mean_in_embedding = True
-                n_compartments = 11
+                n_compartments = 27
+            elif version == 'v6':
+                use_argo_mean = True
+                use_argo_std = False
+                use_auxiliry = True
+            elif version == 'v6-wo-argo':
+                use_argo_mean = False
+                use_argo_std = False
+                use_auxiliry = True
+            elif version == 'v6-aux':
+                use_argo_mean = True
+                use_argo_std = False
+                use_auxiliry = False
 
 
             for i in range(n_iters):
@@ -179,7 +191,8 @@ def run_experiment():
                 elif version.startswith('v6'):
                     model = ProfileModelSUSTeR6(
                         n_features, n_compartments,n_embedding, 
-                        train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner).to(device)
+                        train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner,
+                        use_argo_mean=use_argo_mean, use_argo_std = use_argo_std, use_auxiliry = use_auxiliry).to(device)
                 else:
                     raise ValueError('Unknown version')
 
@@ -207,11 +220,14 @@ def run_experiment():
                 
                 print(f'\t R2 {r2_scores[-1]*100:.2f}%; MAE {mae_scores[-1]:.2f}; MSE {mse_scores[-1]:.2f}')
 
+
             print(f'{version} {test_start_year}-{test_start_year+test_year_count} -' +
                 f'R2 mean {np.mean(r2_scores)*100:.2f}% std {np.std(r2_scores)*100:.2f}%; ' +
                 f'MAE mean {np.mean(mae_scores):.2f} std {np.std(mae_scores):.2f}; ' +
                 f'MSE mean {np.mean(mse_scores):.2f} std {np.std(mse_scores):.2f}; ')
 
+        del(dl)
+        del(val_dl)
 
 if __name__ == '__main__':
     run_experiment()

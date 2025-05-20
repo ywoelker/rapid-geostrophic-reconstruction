@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from torch.utils.data import DataLoader
 from amoc_reconstruction.reconstruction.model import init_assignment_module
-from amoc_reconstruction.reconstruction.model import ProfileModelSUSTeR5_fast, ProfileModelSUSTeR6
+from amoc_reconstruction.reconstruction.model import ProfileModelSUSTeR5_fast, ProfileModelSUSTeR6, ProfileModelSUSTeR7
 from amoc_reconstruction.train import train, make_predictions
 from amoc_reconstruction.reconstruction.dataset import merge_profiles_max_profiles
 from amoc_reconstruction.reconstruction.dataset import load_merged_argo_dataset_and_tumo_cycles, filter_ds_argo_data, split_dataset_into_training_validation_testing_profile_datasets
@@ -14,7 +14,7 @@ import torch
 
 
 def run_experiment():
-    smoothing_days = 10
+    smoothing_days = 90
 
     time_smoothing = f'{smoothing_days}D'
     lat_bounds = (25, 30)
@@ -26,10 +26,10 @@ def run_experiment():
 
     using_missing_indices = False
     using_transport_from_previous_year = False
-    use_deep_dvdz = False
+    use_deep_dvdz = True
     deep_argo = False
-
     geostrophic_prediction = False
+
     train_batch_sizes = {
         '10D': 32,
         '30D': 16,
@@ -61,12 +61,12 @@ def run_experiment():
     assert target_reference_level in [2000, 4800], "Only 2000 and 4800 are supported as reference levels"
     version = 'v5'
     n_compartments = n_compartments_for_smoothing[time_smoothing]
-    n_embedding = 8
+    n_embedding = 6
 
     distance_assignment_module  = 'distance'
 
     experiment_path = Path(f'../rapid-geostrophic-reconstruction/figs/experiment_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
-    dataset_path = Path(f'../rapid-geostrophic-reconstruction/datasets/smoothing_{smoothing_days}_days/argo_after_2012/base_sample/')
+    dataset_path = Path(f'../rapid-geostrophic-reconstruction/datasets/smoothing_{smoothing_days}_days/argo_after_2012/paperdraft/')
 
     total_moc_path = Path('../rapid-geostrophic-reconstruction/datasets/moc_total/')
     antilles_current_path = Path('../rapid-geostrophic-reconstruction/datasets/antilles_current/')
@@ -102,9 +102,10 @@ def run_experiment():
     random_seeds
 
 
+    cycle_suffixe = ['1st_7020', '2nd_5820', '3rd_5820', '4th_5820', '5th_5820', '6th_5820'] # ['1st_70None', '2nd_NoneNone']
 
-    ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta, total_moc, antilles_current, florida_current, wind_stress = load_merged_argo_dataset_and_tumo_cycles(
-        ['1st_70None', '2nd_NoneNone'],
+    ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta, total_moc, antilles_current, florida_current, wind_stress, backward_timeshift = load_merged_argo_dataset_and_tumo_cycles(
+        cycle_suffixe,
         dataset_path,
         ref_folder,
         total_moc_path,
@@ -112,7 +113,7 @@ def run_experiment():
         florida_current_path,
         wind_stress_path,
         time_smoothing,
-        deep_argo,
+        deep_argo if len(cycle_suffixe) < 5 else True,
         missing_values_in_target
     )
 
@@ -124,7 +125,7 @@ def run_experiment():
 
 
     train_dataset, val_dataset, test_dataset, (total_moc_mean, total_moc_std, geostrophic_moc_mean, geostorphic_moc_std) = split_dataset_into_training_validation_testing_profile_datasets(
-        False, test_start_year, test_end_year, validation_years_on_each_side, t_umo_obs, ds_argo_merged, add_tmp, add_sal, deep_argo, False, total_moc, florida_current, antilles_current, wind_stress, dv_dz_obs, missing_values_in_target, ds_pos_sim, compartments, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz
+        False, test_start_year, test_end_year, validation_years_on_each_side, t_umo_obs, ds_argo_merged, add_tmp, add_sal, deep_argo, False, total_moc, florida_current, antilles_current, wind_stress, dv_dz_obs, missing_values_in_target, ds_pos_sim, compartments, time_smoothing, lat_bounds, using_transport_from_previous_year, using_missing_indices, use_deep_dvdz, backward_timeshift
     )
 
 
@@ -135,12 +136,15 @@ def run_experiment():
 
     n_features = train_dataset.X.shape[2]
 
-    for version in ['v5-full', 'v5-std', 'v5-std-embedmean', 'v6']:
+    # for version in ['v5-full', 'v5-std', 'v5-std-embedmean', 'v6-mean', 'v6-std', 'v6-mean-std']:
+    for version in ['v5-std-embedmean']:
+    # for version in ['v7-full', 'v7-std', 'v7-std-embedmean']:
+    # for version in [ 'v6-mean', 'v6-std', 'v6-mean-std']:
 
 
-        n_compartments_list = [1,3,5,7,11,13]
+        n_compartments_list = [27]
 
-        if version.startswith('v6'):
+        if version.startswith('v6') or version.startswith('v7'):
             n_compartments_list = [1]
 
 
@@ -153,6 +157,24 @@ def run_experiment():
         elif version == 'v5-std-embedmean':
             argo_mean_in_gnn = False
             argo_mean_in_embedding = True
+        if version == 'v7-full':
+            argo_mean_in_gnn = True
+            argo_mean_in_embedding = False
+        elif version == 'v7-std':
+            argo_mean_in_gnn = False
+            argo_mean_in_embedding = False
+        elif version == 'v7-std-embedmean':
+            argo_mean_in_gnn = False
+            argo_mean_in_embedding = True
+        elif version == 'v6-mean':
+            use_argo_mean = True
+            use_argo_std = False
+        elif version == 'v6-std':
+            use_argo_mean = False
+            use_argo_std = True
+        elif version == 'v6-mean-std':
+            use_argo_mean = True
+            use_argo_std = True
 
         for n_compartments in n_compartments_list:
             r2_scores = []
@@ -173,7 +195,12 @@ def run_experiment():
                 elif version.startswith('v6'):
                     model = ProfileModelSUSTeR6(
                         n_features, n_compartments,n_embedding, 
-                        train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner).to(device)
+                        train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner, use_argo_mean=use_argo_mean, use_argo_std=use_argo_std).to(device)
+                elif version.startswith('v7'):
+                    model = ProfileModelSUSTeR7(
+                        n_features, n_compartments,n_embedding, 
+                        train_dataset.dv_dz.shape[1] , dv_dz_obs.z, device, profile_embedder=None, node_assigner= node_assigner,
+                        argo_mean_in_embedding=argo_mean_in_embedding, argo_mean_in_gnn_input=argo_mean_in_gnn).to(device)
                 else:
                     raise ValueError('Unknown version')
 
@@ -181,7 +208,7 @@ def run_experiment():
 
 
 
-                best_model = train(model, dl, val_dl, device, verbose = False, geostrophic_target= geostrophic_prediction)
+                best_model = train(model, dl, val_dl, device, verbose = True, geostrophic_target= geostrophic_prediction, lr=1e-3, wd = 1e-6)
 
                 if geostrophic_prediction:
                     test_predictions, (test_hidden_spaces, test_embedding_spaces, test_gt_transport, test_inner_values) = make_predictions(test_dataset, best_model, ds_argo_merged.isel(time = test_dataset.global_indices).time, geostrophic_moc_mean, geostorphic_moc_std,device = device, geostrophic_target=True)
@@ -200,6 +227,10 @@ def run_experiment():
                 mse_scores.append(mean_squared_error(target_variable.sel(time = test_predictions.time, method = "nearest").values, test_predictions.values))
                 
                 print(f'\t R2 {r2_scores[-1]*100:.2f}%; MAE {mae_scores[-1]:.2f}; MSE {mse_scores[-1]:.2f}')
+
+                from amoc_reconstruction.utils.plots import prediction_plot
+
+                prediction_plot(experiment_path, target_variable, test_predictions, f'{version}_{n_compartments}_{i}')
 
             print(f'{version} - {time_smoothing}D {f"- {n_compartments} compartments" if version.startswith("v5") else ""} -' +
                 f'R2 mean {np.mean(r2_scores)*100:.2f}% std {np.std(r2_scores)*100:.2f}%; ' +

@@ -17,9 +17,8 @@ conda activate amoc_recons
 
 
 dask_url='tcp://10.0.4.100:8786'
-smoothing_days=1825
 
-for cycle_number in {1..6} 
+for cycle_number in {3..6} 
 do
-    python data_scripts/extract_argos.py --deep_argo True --dask_url ${dask_url} --cycle_number ${cycle_number} --smoothing_days ${smoothing_days};
+    python data_scripts/extract_antilles_current.py --dask_url ${dask_url} --cycle_number ${cycle_number};
 done

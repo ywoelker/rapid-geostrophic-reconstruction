@@ -88,8 +88,19 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
             loss = criterion(outputs, target)
             loss.backward()
 
+            if torch.isnan(loss):
+                print('Loss is NaN')
+                continue
+
             optimizer_all.step()
             loss_per_epoch += loss.detach().cpu().item()
+
+            # check if all parameters are finite
+            for name, param in model.named_parameters():
+                if torch.isnan(param).any():
+                    print('Parameter ', name, ' comtains NaN values')
+                    print(param)
+                    # raise ValueError('Parameter is not finite')
 
         lr_scheduler_all.step()
 
@@ -131,7 +142,7 @@ def train(model, train_dataloader, val_dataloader, device = 'cpu', seed = None, 
 
         train_losses.append([loss_per_epoch / len(train_dataloader), total_val_loss])
 
-        if epoch - best_epoch > 25 and best_val_loss < 20:
+        if epoch - best_epoch > 15 and best_val_loss < 20:
             break
 
     return best_model

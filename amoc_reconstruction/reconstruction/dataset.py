@@ -76,6 +76,7 @@ class ProfileDataset(Dataset):
                 if len(profile_indices) < 1:
                     compartment_X_per_sample.append(np.empty(0))
                     compartment_lon_per_sample.append(np.empty(0))
+                    compartment_lat_per_sample.append(np.empty(0))
                     compartment_days_per_sample.append(np.empty(0))
                     continue
 
@@ -115,12 +116,12 @@ class ProfileDataset(Dataset):
         else:
             y_prev = np.zeros_like(self.y_prev[idx])
 
-        if self.using_missing_indices:
+        if self.using_missing_indices and self.use_ar_input:
             missing_indices_per_compartment = self.missing_indices_per_compartment[idx] 
         else:
             missing_indices_per_compartment = np.zeros_like(self.missing_indices_per_compartment[idx])
         
-        if self.use_deep_dvdz:
+        if self.use_deep_dvdz and self.use_ar_input:
             dv_dz = self.dv_dz_per_compartment[idx]
         else:
             dv_dz = np.zeros_like(self.dv_dz_per_compartment[idx])
@@ -187,17 +188,19 @@ def load_merged_argo_dataset_and_tumo(
     florida_current = xr.open_dataset(florida_current_path / f'florida_current_KFS003-{suffix}.nc').load()
     wind_stress = xr.open_dataset(wind_stress_path / f'sozotaux_2527N_8010W_KFS003-{suffix}.nc').load()
 
-    # t_umo_obs['time'] = t_umo_obs.time.dt.floor('D')
-    # t_umo_obs = t_umo_obs.resample(time = time_smoothing).mean()
 
-    t_umo_obs = t_umo_obs.groupby(t_umo_obs.time.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
-    ds_pos = ds_pos.groupby(ds_pos.time.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
-    dv_dz = dv_dz.groupby(dv_dz.time.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
+    def smooth_data(dataset, time_smoothing, time_feature):
+        dataset = dataset.groupby(dataset[time_feature].dt.round(time_smoothing)).mean().rename({'round': 'time'})
+        return dataset
 
-    total_moc = total_moc.groupby(total_moc.time_counter.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
-    antilles_current = antilles_current.groupby(antilles_current.time_counter.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
-    florida_current = florida_current.groupby(florida_current.time_counter.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
-    wind_stress = wind_stress.groupby(wind_stress.time_counter.dt.floor(time_smoothing)).mean().rename({'floor': 'time'})
+    t_umo_obs = smooth_data(t_umo_obs, time_smoothing, 'time')
+    ds_pos = smooth_data(ds_pos, time_smoothing, 'time')
+    dv_dz = smooth_data(dv_dz, time_smoothing, 'time')
+
+    total_moc = smooth_data(total_moc, time_smoothing, 'time_counter')
+    antilles_current = smooth_data(antilles_current, time_smoothing, 'time_counter')
+    florida_current = smooth_data(florida_current, time_smoothing, 'time_counter')
+    wind_stress = smooth_data(wind_stress, time_smoothing, 'time_counter')
 
     t_umo_obs = t_umo_obs.sel(time = slice(ds_argo_merged.time.min(), ds_argo_merged.time.max()))
     ds_pos = ds_pos.sel(time = slice(ds_argo_merged.time.min(), ds_argo_merged.time.max()))
@@ -229,7 +232,7 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
     wind_stress = None
     
     # assert len(suffixe) <= 2, 'Longer? Think on the t_delta '
-
+    t_deltas = []
     for suffix in suffixe:
         ds_argo_merged_cycle, t_umo_obs_cycle, ds_pos_cycle, dv_dz_cycle, total_moc_cycle, antilles_current_cycle, florida_current_cycle, wind_stress_cycle = load_merged_argo_dataset_and_tumo(
             time_smoothing, 
@@ -274,6 +277,7 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
             
         else:
             t_delta = ds_argo_merged.time.max() - ds_argo_merged_cycle.time.min() + pd.Timedelta(time_smoothing)
+            t_deltas.append(t_delta)
             ds_argo_merged_cycle['time'] = ds_argo_merged_cycle['time'] + t_delta 
             t_umo_obs_cycle['time'] = t_umo_obs_cycle['time'] + t_delta
             ds_pos_cycle['time'] = ds_pos_cycle['time'] + t_delta
@@ -295,7 +299,7 @@ def load_merged_argo_dataset_and_tumo_cycles(suffixe, dataset_path, ref_folder, 
             florida_current = xr.concat([florida_current, florida_current_cycle], dim = 'time')
             wind_stress = xr.concat([wind_stress, wind_stress_cycle], dim = 'time')
 
-    return ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_delta if len(suffixe) > 1 else None, total_moc, antilles_current, florida_current, wind_stress, referenced_to_1800
+    return ds_argo_merged, t_umo_obs, ds_pos_sim, dv_dz_obs, t_deltas, total_moc, antilles_current, florida_current, wind_stress, referenced_to_1800
 
 
 def filter_ds_argo_data(ds_argo_merged_10days, deep_argo = False):
@@ -351,13 +355,6 @@ def split_dataset_into_training_validation_testing_profile_datasets(
     val_ratio = .15
 
 
-    # t_umo_10days = t_umo_10days.sel(time = slice(None, '2020-01-01'))
-    # ds_argo_merged_10days = ds_argo_merged_10days.sel(time = slice(None, '2020-01-01'))
-
-
-
-
-
 
     if random_split_data:
 
@@ -395,6 +392,8 @@ def split_dataset_into_training_validation_testing_profile_datasets(
                     np.datetime64(f'{test_end_year + validation_years_on_each_side}-01-01') - backwards_timeshift)
                 ).ti.values
             val_indices = np.concatenate([valid_indices_1, valid_indices_2])
+
+        print(min(test_indices), max(test_indices), t_umo_10days.isel(time = min(test_indices)).time.data, t_umo_10days.isel(time = max(test_indices)).time.data)
 
 
 
@@ -668,10 +667,12 @@ def merge_profiles_max_profiles(data):
     x = [torch.cat(x_batch, dim = 0) for x_batch in x]
     max_profiles = max([len(x_i) for x_i in x])
 
-    x_padded = torch.zeros(n_batch, max_profiles, x[0].shape[-1])
+    x_padded = torch.zeros(n_batch, max_profiles, max([xi.shape[-1] for xi in x]))
     mask_padded = torch.zeros(n_batch, max_profiles)
 
     for i, x_i in enumerate(x):
+        if len(x_i) == 0:
+            continue
         x_padded[i, :len(x_i)] = x_i
         mask_padded[i, :len(x_i)] = 1
 
@@ -698,6 +699,8 @@ def merge_profiles_max_profiles(data):
     # y_prev = torch.stack(y_prev, dim = 0) # shape (batch, 3)
 
     missing_indices = torch.stack(missing_indices, dim = 0) # shape (batch, 4)
+
+
 
     return x, mask_padded, y, y_prev, lon, lat, dv_dz, days,missing_indices, fs, ac, ws, total_moc
 
