@@ -1,0 +1,315 @@
+{
+    "test_value": 0,
+    "001": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_090943_d4a3",
+        "start_time": "20250326_091057",
+        "end_time": "20250326_105849"
+    },
+    "002": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_091104_c42b",
+        "start_time": "20250326_091141",
+        "end_time": "20250326_101738"
+    },
+    "003": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_091222_ba44",
+        "start_time": "20250326_091259",
+        "end_time": "20250326_094448"
+    },
+    "004": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_091341_75fa",
+        "start_time": "20250326_091410",
+        "end_time": "20250326_094503"
+    },
+    "005": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_091501_a781",
+        "start_time": "20250326_091539",
+        "end_time": "20250326_101303"
+    },
+    "006": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_091623_93f4",
+        "start_time": "20250326_091700",
+        "end_time": "20250326_100326"
+    },
+    "017": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_094528_5a1c",
+        "start_time": "20250326_094609",
+        "end_time": "20250326_104108"
+    },
+    "024": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_094540_d0de",
+        "start_time": "20250326_094652",
+        "end_time": "20250326_112503"
+    },
+    "030": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_100416_3e34",
+        "start_time": "20250326_100622",
+        "end_time": "20250326_113004"
+    },
+    "016": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_101343_39c7",
+        "start_time": "20250326_101500",
+        "end_time": "20250326_114323"
+    },
+    "045": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_101838_5fb7",
+        "start_time": "20250326_101954",
+        "end_time": "20250326_113520"
+    },
+    "007": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_103812_7198",
+        "start_time": "20250326_103852",
+        "end_time": "20250326_110816"
+    },
+    "048": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_104209_576b",
+        "start_time": "20250326_104239",
+        "end_time": "20250326_110122"
+    },
+    "012": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_104441_ff13",
+        "start_time": "20250326_104553",
+        "end_time": "20250326_115217"
+    },
+    "013": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_104624_f834",
+        "start_time": "20250326_104702",
+        "end_time": "20250326_112630"
+    },
+    "014": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_104743_2972",
+        "start_time": "20250326_104821",
+        "end_time": "20250326_110610"
+    },
+    "023": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_105945_fade",
+        "start_time": "20250326_110015",
+        "end_time": "20250326_112516"
+    },
+    "025": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_110206_0280",
+        "start_time": "20250326_110243",
+        "end_time": "20250326_115922"
+    },
+    "019": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_110804_e862",
+        "start_time": "20250326_110836",
+        "end_time": "20250326_114611"
+    },
+    "015": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_110912_94e7",
+        "start_time": "20250326_110942",
+        "end_time": "20250326_114556"
+    },
+    "047": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_112539_f19c",
+        "start_time": "20250326_112615",
+        "end_time": "20250326_114332"
+    },
+    "029": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_112654_1373",
+        "start_time": "20250326_112846",
+        "end_time": "20250326_142812"
+    },
+    "032": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_112753_81c4",
+        "start_time": "20250326_112925",
+        "end_time": "20250326_124229"
+    },
+    "031": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_113100_b7ed",
+        "start_time": "20250326_113251",
+        "end_time": "20250326_133625"
+    },
+    "027": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_113555_e2d1",
+        "start_time": "20250326_113625",
+        "end_time": "20250326_122958"
+    },
+    "042": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_114412_e846",
+        "start_time": "20250326_114452",
+        "end_time": "20250326_123350"
+    },
+    "021": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_114449_4bd5",
+        "start_time": "20250326_114528",
+        "end_time": "20250326_122409"
+    },
+    "020": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_114705_7335",
+        "start_time": "20250326_114818",
+        "end_time": "20250326_130037"
+    },
+    "044": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_114801_8663",
+        "start_time": "20250326_114832",
+        "end_time": "20250326_120713"
+    },
+    "046": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_115311_49db",
+        "start_time": "20250326_115352",
+        "end_time": "20250326_123845"
+    },
+    "018": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_120017_3bd2",
+        "start_time": "20250326_120057",
+        "end_time": "20250326_122907"
+    },
+    "028": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_121029_dffe",
+        "start_time": "20250326_121238",
+        "end_time": "20250326_133222"
+    },
+    "026": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_122439_8162",
+        "start_time": "20250326_122517",
+        "end_time": "20250326_125430"
+    },
+    "041": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_122934_bf15",
+        "start_time": "20250326_123052",
+        "end_time": "20250326_140011"
+    },
+    "022": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_123244_c4fc",
+        "start_time": "20250326_123320",
+        "end_time": "20250326_124907"
+    },
+    "043": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_123508_3098",
+        "start_time": "20250326_123546",
+        "end_time": "20250326_125834"
+    },
+    "008": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_185231_0682",
+        "start_time": "20250326_185328",
+        "end_time": "20250326_194818"
+    },
+    "009": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_185354_f5c0",
+        "start_time": "20250326_185427",
+        "end_time": "20250326_192801"
+    },
+    "010": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_185512_7754",
+        "start_time": "20250326_185541",
+        "end_time": "20250326_191613"
+    },
+    "011": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_185641_51e5",
+        "start_time": "20250326_185706",
+        "end_time": "20250326_191345"
+    },
+    "033": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_192555_9479",
+        "start_time": "20250326_192644",
+        "end_time": "20250326_202859"
+    },
+    "034": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_192718_7059",
+        "start_time": "20250326_192747",
+        "end_time": "20250326_194608"
+    },
+    "035": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_192904_aace",
+        "start_time": "20250326_192933",
+        "end_time": "20250326_193958"
+    },
+    "037": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_194045_ab81",
+        "start_time": "20250326_194142",
+        "end_time": "20250326_202429"
+    },
+    "049": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_194821_5ddf",
+        "start_time": "20250326_195007",
+        "end_time": "20250326_204351"
+    },
+    "038": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_195005_a094",
+        "start_time": "20250326_195038",
+        "end_time": "20250326_201145"
+    },
+    "036": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_201413_1add",
+        "start_time": "20250326_201439",
+        "end_time": "20250326_203416"
+    },
+    "052": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_202608_cede",
+        "start_time": "20250326_202742",
+        "end_time": "20250326_212601"
+    },
+    "050": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_202950_ef46",
+        "start_time": "20250326_203151",
+        "end_time": "20250326_214856"
+    },
+    "040": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_203559_9b02",
+        "start_time": "20250326_203636",
+        "end_time": "20250326_204812"
+    },
+    "051": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_204441_1cf2",
+        "start_time": "20250326_204647",
+        "end_time": "20250326_213135"
+    },
+    "039": {
+        "status": "finished",
+        "experiment_path": "../rapid-geostrophic-reconstruction/figs/experiment_20250326_204950_2539",
+        "start_time": "20250326_205031",
+        "end_time": "20250326_210046"
+    }
+}
